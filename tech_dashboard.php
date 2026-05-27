@@ -27,28 +27,48 @@ if (isset($_POST['update_ticket'])) {
         if ($ticket && !empty($ticket['employee_email'])) {
             $api_key = getenv('SENDGRID_API_KEY');
             
-            // Build the HTML email
-            $html_body = "
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;'>
-                    <div style='background: #3b82f6; padding: 20px; color: white; text-align: center;'>
-                        <h2 style='margin: 0;'>Ticket Resolved</h2>
-                    </div>
-                    <div style='padding: 30px; background: #ffffff; color: #334155;'>
-                        <p style='font-size: 16px;'>Hello <strong>{$ticket['employee_name']}</strong>,</p>
-                        <p style='font-size: 16px;'>Good news! Your IT Support ticket regarding <strong>'{$ticket['issue_title']}'</strong> has been successfully resolved by our team.</p>";
+            // Auto-capitalize the employee's name for a professional look
+            $formatted_name = htmlspecialchars(ucwords(strtolower($ticket['employee_name'])));
+            $formatted_issue = htmlspecialchars($ticket['issue_title']);
+            
+            // Format the ID so it looks like a real ticket number (e.g., #00042)
+            $display_id = str_pad($ticket_id, 5, '0', STR_PAD_LEFT); 
 
+            // Build the Upgraded HTML email
+            $html_body = "
+            <div style='font-family: \"Segoe UI\", Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f1f5f9; padding: 40px 20px;'>
+                <div style='background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'>
+                    
+                    <div style='background: #3b82f6; padding: 30px 20px; text-align: center;'>
+                        <h2 style='margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;'>Ticket Resolved</h2>
+                        <p style='margin: 8px 0 0 0; color: #bfdbfe; font-size: 14px; font-weight: 600; text-transform: uppercase;'>Ticket #{$display_id}</p>
+                    </div>
+                    
+                    <div style='padding: 35px 30px; color: #334155;'>
+                        <p style='font-size: 16px; margin-top: 0;'>Hello <strong>{$formatted_name}</strong>,</p>
+                        <p style='font-size: 16px; line-height: 1.6;'>Good news! Your IT Support ticket regarding <strong style='color: #0f172a;'>\"{$formatted_issue}\"</strong> has been successfully resolved by our team.</p>";
+
+            // Conditional Resolution Box
             if (!empty($resolution_notes)) {
                 $html_body .= "
-                        <div style='background: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 25px 0;'>
-                            <p style='margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; font-weight: bold;'>Resolution Notes from IT:</p>
-                            <p style='margin: 0; font-size: 15px; color: #0f172a;'>" . nl2br(htmlspecialchars($resolution_notes)) . "</p>
+                        <div style='background: #f0fdf4; border-left: 4px solid #10b981; padding: 18px 20px; margin: 30px 0; border-radius: 0 8px 8px 0;'>
+                            <p style='margin: 0 0 8px 0; font-size: 12px; color: #047857; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;'>Resolution Notes from IT:</p>
+                            <p style='margin: 0; font-size: 15px; color: #064e3b; line-height: 1.5;'>" . nl2br(htmlspecialchars($resolution_notes)) . "</p>
                         </div>";
             }
 
+            // Sign-off
             $html_body .= "
-                        <p style='font-size: 15px; color: #64748b; margin-top: 25px;'>Thank you for your patience,<br><strong>The TickeTech IT Team</strong></p>
+                        <p style='font-size: 15px; color: #64748b; line-height: 1.6; margin-bottom: 0;'>Thank you for your patience,<br><strong style='color: #0f172a;'>The TickeTech IT Team</strong></p>
                     </div>
+                    
+                    <div style='background: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e2e8f0;'>
+                        <p style='margin: 0; font-size: 12px; color: #64748b;'>This is an automated message from the TickeTech Help Desk system. Please do not reply to this email.</p>
+                        <p style='margin: 10px 0 0 0; font-size: 12px; color: #94a3b8;'>&copy; " . date('Y') . " TickeTech. All rights reserved.</p>
+                    </div>
+
                 </div>
+            </div>
             ";
 
             // Prepare the JSON payload for SendGrid
@@ -62,7 +82,7 @@ if (isset($_POST['update_ticket'])) {
                     ]
                 ],
                 'from' => [
-                    'email' => 'bustillo1229@gmail.com', // ⚠️ CHANGE THIS TO YOUR VERIFIED EMAIL!
+                    'email' => 'bustillo1229@gmail.com', // ALREADY SET TO YOUR VERIFIED EMAIL!
                     'name' => 'TickeTech IT'
                 ],
                 'content' => [
