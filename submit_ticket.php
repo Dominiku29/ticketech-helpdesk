@@ -46,6 +46,7 @@ if (isset($_POST['submit_ticket'])) {
     <meta charset="UTF-8">
     <title>Submit IT Ticket</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="logo.png">
 </head>
 <body>
 
