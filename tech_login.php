@@ -8,20 +8,12 @@ if (isset($_POST['login'])) {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // Look up the user in the database
-    $stmt = $conn->prepare("
-        SELECT *
-        FROM admin
-        WHERE username = :username
-        LIMIT 1
-    ");
-
+    $stmt = $conn->prepare("SELECT * FROM admin WHERE username = :username LIMIT 1");
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Verify password 
     if ($user && $password === $user['password']) {
-        session_regenerate_id(true); // Security best practice
+        session_regenerate_id(true);
         $_SESSION['tech_admin'] = $user['username'];
         header("Location: tech_dashboard.php");
         exit;
@@ -37,6 +29,7 @@ if (isset($_POST['login'])) {
     <meta charset="UTF-8">
     <title>IT Login - Help Desk</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="logo.png">
 </head>
 <body>
 
@@ -46,9 +39,7 @@ if (isset($_POST['login'])) {
         <p class="subtitle">Secure Technician Access</p>
 
         <?php if ($error): ?>
-            <div class="error-box">
-                <?php echo htmlspecialchars($error); ?>
-            </div>
+            <div class="error-box"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <form method="POST">
@@ -60,9 +51,11 @@ if (isset($_POST['login'])) {
 
             <button type="submit" name="login">Authenticate</button>
         </form>
-<div style="text-align: center; margin-top: 15px;">
-    <a href="forgot_password.php" style="color: #3b82f6; font-size: 0.9rem; text-decoration: none; font-weight: 600;">Forgot Password?</a>
-</div>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <a href="forgot_password.php" style="color: #3b82f6; font-size: 0.9rem; text-decoration: none; font-weight: 600;">Forgot Password?</a>
+        </div>
+        
         <div class="links">
             <a href="submit_ticket.php">← Back to Ticket Submission</a>
         </div>
