@@ -31,8 +31,8 @@ if (isset($_POST['update_ticket'])) {
             $formatted_name = htmlspecialchars(ucwords(strtolower($ticket['employee_name'])));
             $formatted_issue = htmlspecialchars($ticket['issue_title']);
             
-            // Format the ID so it looks like a real ticket number (e.g., #00042)
-            $display_id = str_pad($ticket_id, 5, '0', STR_PAD_LEFT); 
+            // Format the ID to perfectly match the 7-digit dashboard display
+$display_id = substr($ticket_id, -7);
 
             // Build the Upgraded HTML email
             $html_body = "
