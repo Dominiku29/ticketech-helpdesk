@@ -27,63 +27,57 @@ if (isset($_POST['update_ticket'])) {
     $update = $conn->prepare("UPDATE support_tickets SET status = :status, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
     $update->execute([':status' => $new_status, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
 
-    // --- MAGIC EMAIL TRIGGER ---
-/*    if ($new_status === 'Resolved') {
-        // Fetch the submitter's details
+    // --- MAGIC EMAIL TRIGGER (RESEND API) ---
+    if ($new_status === 'Resolved') {
         $stmt = $conn->prepare("SELECT employee_name, employee_email, issue_title FROM support_tickets WHERE id = :id");
         $stmt->execute([':id' => $ticket_id]);
         $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Only send if they actually provided an email
         if ($ticket && !empty($ticket['employee_email'])) {
-            $mail = new PHPMailer(true);
-            try {
-                // Server settings
-                $mail->isSMTP();
-                $mail->Host       = 'smtp.gmail.com';
-                $mail->SMTPAuth   = true;
-                $mail->Username   = getenv('MAIL_USERNAME'); // Your Gmail from Render Env
-                $mail->Password   = getenv('MAIL_PASSWORD'); // Your App Password from Render Env
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                $mail->Port       = 587;
-
-                // Recipients
-                $mail->setFrom(getenv('MAIL_USERNAME'), 'TickeTech IT Support');
-                $mail->addAddress($ticket['employee_email'], $ticket['employee_name']);
-
-                // Content
-                $mail->isHTML(true);
-                $mail->Subject = 'Resolved: ' . $ticket['issue_title'];
-                
-                // The beautiful HTML email body
-                $mail->Body = "
-                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;'>
-                        <div style='background: #3b82f6; padding: 20px; color: white; text-align: center;'>
-                            <h2 style='margin: 0;'>Ticket Resolved</h2>
-                        </div>
-                        <div style='padding: 30px; background: #ffffff; color: #334155;'>
-                            <p style='font-size: 16px;'>Hello <strong>{$ticket['employee_name']}</strong>,</p>
-                            <p style='font-size: 16px;'>Good news! Your IT Support ticket regarding <strong>'{$ticket['issue_title']}'</strong> has been successfully resolved by our team.</p>
-                            
-                            <div style='background: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 25px 0;'>
-                                <p style='margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; font-weight: bold;'>Resolution Notes from IT:</p>
-                                <p style='margin: 0; font-size: 15px; color: #0f172a;'>" . nl2br(htmlspecialchars($resolution_notes)) . "</p>
-                            </div>
-                            
-                            <p style='font-size: 15px; color: #64748b;'>Thank you for your patience,<br><strong>The TickeTech IT Team</strong></p>
-                        </div>
+            $api_key = getenv('RESEND_API_KEY');
+            
+            // Build the HTML email
+            $html_body = "
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;'>
+                    <div style='background: #3b82f6; padding: 20px; color: white; text-align: center;'>
+                        <h2 style='margin: 0;'>Ticket Resolved</h2>
                     </div>
-                ";
+                    <div style='padding: 30px; background: #ffffff; color: #334155;'>
+                        <p style='font-size: 16px;'>Hello <strong>{$ticket['employee_name']}</strong>,</p>
+                        <p style='font-size: 16px;'>Good news! Your IT Support ticket regarding <strong>'{$ticket['issue_title']}'</strong> has been successfully resolved by our team.</p>
+                        <div style='background: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 25px 0;'>
+                            <p style='margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; font-weight: bold;'>Resolution Notes from IT:</p>
+                            <p style='margin: 0; font-size: 15px; color: #0f172a;'>" . nl2br(htmlspecialchars($resolution_notes)) . "</p>
+                        </div>
+                        <p style='font-size: 15px; color: #64748b;'>Thank you for your patience,<br><strong>The TickeTech IT Team</strong></p>
+                    </div>
+                </div>
+            ";
 
-                $mail->send();
-            } catch (Exception $e) {
-                // If the email fails (e.g. wrong password), it logs the error but doesn't crash the website
-                error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
-            }
+            // Prepare the JSON payload for Resend
+            $post_data = json_encode([
+                'from' => 'TickeTech IT <onboarding@resend.dev>',
+                'to' => [$ticket['employee_email']],
+                'subject' => 'Resolved: ' . $ticket['issue_title'],
+                'html' => $html_body
+            ]);
+
+            // Open a cURL connection to the Resend API
+            $ch = curl_init('https://api.resend.com/emails');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $api_key,
+                'Content-Type: application/json'
+            ]);
+
+            // Execute the API call and close connection
+            $response = curl_exec($ch);
+            curl_close($ch);
         }
     }
     // --- END MAGIC EMAIL TRIGGER ---
-*/
     header("Location: tech_dashboard.php");
     exit;
 }
