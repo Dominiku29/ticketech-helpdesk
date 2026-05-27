@@ -78,7 +78,7 @@ if (isset($_POST['update_ticket'])) {
                     ]
                 ],
                 'from' => [
-                    'email' => 'bustillo1229@gmail.com', // ALREADY SET TO YOUR VERIFIED EMAIL!
+                    'email' => 'ticketech.support@gmail.com', // ALREADY SET TO YOUR VERIFIED EMAIL!
                     'name' => 'TickeTech IT'
                 ],
                 'content' => [
