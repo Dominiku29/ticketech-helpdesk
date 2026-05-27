@@ -1,5 +1,4 @@
 <?php
-// --- THE SECURITY BOUNCER ---
 session_start();
 include 'db.php';
 
@@ -15,11 +14,7 @@ if (isset($_POST['update_ticket'])) {
     $resolution_notes = trim($_POST['resolution_notes']);
     $resolved_at = ($new_status === 'Resolved') ? date('Y-m-d H:i:s') : null;
 
-    $update = $conn->prepare("
-        UPDATE support_tickets 
-        SET status = :status, resolution_notes = :notes, resolved_at = :resolved_at
-        WHERE id = :id
-    ");
+    $update = $conn->prepare("UPDATE support_tickets SET status = :status, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
     $update->execute([':status' => $new_status, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
     header("Location: tech_dashboard.php");
     exit;
@@ -45,7 +40,7 @@ if (isset($_POST['unclaim_ticket'])) {
     exit;
 }
 
-// --- NEW: 4. Handle Archive Ticket (Soft Delete) ---
+// 4. Handle Archive Ticket (Soft Delete)
 if (isset($_POST['archive_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $archive = $conn->prepare("UPDATE support_tickets SET is_archived = TRUE WHERE id = :id");
@@ -53,10 +48,9 @@ if (isset($_POST['archive_ticket'])) {
     header("Location: tech_dashboard.php");
     exit;
 }
-// ---------------------------------------------------
 
 // 5. Build the Dynamic Search & Filter Query
-$current_view = $_GET['view'] ?? 'active'; // Default to active tickets
+$current_view = $_GET['view'] ?? 'active';
 $is_archived_param = ($current_view === 'archived') ? 'TRUE' : 'FALSE';
 
 $where_clauses = ["is_archived = " . $is_archived_param]; 
@@ -99,27 +93,22 @@ $current_priority = $_GET['filter_priority'] ?? '';
     <meta charset="UTF-8">
     <title>IT Technician Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="logo.png">
     <style>
         table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
         th, td { padding: 15px; border-bottom: 1px solid #e2e8f0; }
         th { background: #f8fafc; color: #0f172a; font-weight: 800; }
         .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: white; display: inline-block; text-align: center; }
-        
         .Critical { background: #ef4444; }
         .High { background: #f97316; }
         .Medium { background: #eab308; color: #1e293b; } 
         .Low { background: #3b82f6; }
-        
         textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px; font-family: inherit; }
         .update-btn { padding: 10px 15px; margin-top: 10px; font-size: 0.9rem; cursor: pointer; }
-        
         .unclaim-btn { background: white; color: #ef4444; border: 1px solid #ef4444; margin-top: 5px; }
         .unclaim-btn:hover { background: #fef2f2; }
-        
-        /* Archive Button */
         .archive-btn { background: #64748b; color: white; border: none; margin-top: 5px; }
         .archive-btn:hover { background: #475569; }
-        
         .filter-bar { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center; border: 1px solid #e2e8f0; }
         .filter-bar input, .filter-bar select { padding: 12px; margin: 0; width: auto; flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; }
         .filter-bar button { margin: 0; padding: 12px 25px; width: auto; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
@@ -176,7 +165,6 @@ $current_priority = $_GET['filter_priority'] ?? '';
                     <?php foreach ($tickets as $ticket): ?>
                         <tr>
                             <td>#<?php echo substr($ticket['id'], -7); ?></td>
-                            
                             <td>
                                 <strong><?php echo htmlspecialchars($ticket['employee_name']); ?></strong><br>
                                 <span style="font-size: 0.85rem; color: #64748b;"><?php echo htmlspecialchars($ticket['department']); ?></span>
@@ -186,35 +174,25 @@ $current_priority = $_GET['filter_priority'] ?? '';
                                 <span style="font-size: 0.9rem;"><?php echo htmlspecialchars($ticket['issue_description']); ?></span><br>
                                 <span style="font-size: 0.75rem; color: #94a3b8;">Reported: <?php echo date('M j, Y g:i A', strtotime($ticket['created_at'])); ?></span>
                             </td>
-                            <td>
-                                <span class="badge <?php echo $ticket['priority']; ?>">
-                                    <?php echo $ticket['priority']; ?>
-                                </span>
-                            </td>
+                            <td><span class="badge <?php echo $ticket['priority']; ?>"><?php echo $ticket['priority']; ?></span></td>
                             <td style="min-width: 250px;">
                                 <?php if (empty($ticket['assigned_to'])): ?>
                                     <form method="POST" style="margin: 0;">
                                         <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                                        <button type="submit" name="claim_ticket" class="update-btn" style="background: #3b82f6; color: white; width: 100%; border: none; border-radius: 8px; font-weight: bold; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">
-                                            Claim Ticket
-                                        </button>
+                                        <button type="submit" name="claim_ticket" class="update-btn" style="background: #3b82f6; color: white; width: 100%; border: none; border-radius: 8px; font-weight: bold; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">Claim Ticket</button>
                                     </form>
                                 <?php else: ?>
                                     <div style="margin-bottom: 10px; font-size: 0.85rem; color: #64748b; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; display: inline-block;">
                                         👤 Assigned to: <strong><?php echo htmlspecialchars($ticket['assigned_to']); ?></strong>
                                     </div>
-
                                     <form method="POST" style="margin: 0; display: flex; flex-direction: column; gap: 5px;">
                                         <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                                        
                                         <select name="status" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
                                             <option value="Open" <?php if ($ticket['status'] == 'Open') echo 'selected'; ?>>Open</option>
                                             <option value="In Progress" <?php if ($ticket['status'] == 'In Progress') echo 'selected'; ?>>In Progress</option>
                                             <option value="Resolved" <?php if ($ticket['status'] == 'Resolved') echo 'selected'; ?>>Resolved</option>
                                         </select>
-
                                         <textarea name="resolution_notes" rows="2" placeholder="Enter resolution notes..."><?php echo htmlspecialchars($ticket['resolution_notes'] ?? ''); ?></textarea>
-                                        
                                         <button type="submit" name="update_ticket" class="update-btn" style="background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold;">Save Update</button>
                                         
                                         <?php if ($ticket['status'] !== 'Resolved'): ?>
@@ -224,18 +202,13 @@ $current_priority = $_GET['filter_priority'] ?? '';
                                         <?php if ($ticket['status'] === 'Resolved' && $ticket['is_archived'] == false): ?>
                                             <button type="submit" name="archive_ticket" class="update-btn archive-btn" style="border-radius: 8px; font-weight: bold;">Archive Ticket</button>
                                         <?php endif; ?>
-
                                     </form>
                                 <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">
-                            No tickets found in this view.
-                        </td>
-                    </tr>
+                    <tr><td colspan="5" style="text-align: center; padding: 40px; color: #64748b;">No tickets found in this view.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -247,6 +220,7 @@ $current_priority = $_GET['filter_priority'] ?? '';
                 <a href="logout.php" style="color: #ef4444; font-weight: 600; text-decoration: none;">Secure Logout</a>
             </div>
         </div>
+    </div>
 </div>
 
 </body>
