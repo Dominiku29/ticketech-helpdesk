@@ -44,7 +44,14 @@ if (isset($_POST['submit_ticket'])) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Submit IT Ticket</title>
+    
+    <title>TickeTech</title>
+    
+    <meta property="og:title" content="TickeTech">
+    <meta property="og:description" content="Modern. Sleek. Digital IT Support.">
+    <meta property="og:image" content="logo.png">
+    <meta property="og:url" content="https://ticketech.onrender.com">
+
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
 </head>
