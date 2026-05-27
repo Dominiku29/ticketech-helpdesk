@@ -55,7 +55,7 @@ if (isset($_POST['update_ticket'])) {
 
             // Sign-off
             $html_body .= "
-                        <p style='font-size: 15px; color: #64748b; line-height: 1.6; margin-bottom: 0;'>Thank you for your patience,<br><strong style='color: #0f172a;'>The TickeTech IT Team</strong></p>
+                        <p style='font-size: 15px; color: #64748b; line-height: 1.6; margin-bottom: 0;'>Thank you for your patience,<br><strong style='color: #0f172a;'>TickeTech IT Team</strong></p>
                     </div>
                     
                     <div style='background: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e2e8f0;'>
