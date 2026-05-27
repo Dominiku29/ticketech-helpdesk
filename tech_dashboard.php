@@ -30,18 +30,14 @@ if (isset($_POST['update_ticket'])) {
             // Auto-capitalize the employee's name for a professional look
             $formatted_name = htmlspecialchars(ucwords(strtolower($ticket['employee_name'])));
             $formatted_issue = htmlspecialchars($ticket['issue_title']);
-            
-            // Format the ID to perfectly match the 7-digit dashboard display
-$display_id = substr($ticket_id, -7);
 
-            // Build the Upgraded HTML email
+            // Build the Upgraded HTML email (NO TICKET NUMBER)
             $html_body = "
             <div style='font-family: \"Segoe UI\", Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f1f5f9; padding: 40px 20px;'>
                 <div style='background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'>
                     
                     <div style='background: #3b82f6; padding: 30px 20px; text-align: center;'>
                         <h2 style='margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;'>Ticket Resolved</h2>
-                        <p style='margin: 8px 0 0 0; color: #bfdbfe; font-size: 14px; font-weight: 600; text-transform: uppercase;'>Ticket #{$display_id}</p>
                     </div>
                     
                     <div style='padding: 35px 30px; color: #334155;'>
