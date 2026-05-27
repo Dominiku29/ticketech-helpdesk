@@ -28,7 +28,7 @@ if (isset($_POST['update_ticket'])) {
     $update->execute([':status' => $new_status, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
 
     // --- MAGIC EMAIL TRIGGER ---
-   /* if ($new_status === 'Resolved') {
+    if ($new_status === 'Resolved') {
         // Fetch the submitter's details
         $stmt = $conn->prepare("SELECT employee_name, employee_email, issue_title FROM support_tickets WHERE id = :id");
         $stmt->execute([':id' => $ticket_id]);
@@ -83,7 +83,7 @@ if (isset($_POST['update_ticket'])) {
         }
     }
     // --- END MAGIC EMAIL TRIGGER ---
-*/
+
     header("Location: tech_dashboard.php");
     exit;
 }
