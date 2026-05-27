@@ -62,7 +62,7 @@ if (isset($_POST['update_ticket'])) {
                     ]
                 ],
                 'from' => [
-                    'email' => 'bustillo1229@gmail.com', // CHANGE THIS TO YOUR VERIFIED EMAIL!
+                    'email' => 'bustillo1229@gmail.com', // ⚠️ CHANGE THIS TO YOUR VERIFIED EMAIL!
                     'name' => 'TickeTech IT'
                 ],
                 'content' => [
@@ -199,9 +199,14 @@ $current_priority = $_GET['filter_priority'] ?? '';
 
 <div class="dashboard-container">
     <div class="card" style="max-width: 100%; padding: 30px;">
-        <h1 style="text-align: left;">IT Technician Portal</h1>
-        <p class="subtitle" style="text-align: left;">Manage and Resolve Support Tickets</p>
-
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 style="text-align: left; margin: 0;">IT Technician Portal</h1>
+            <span style="background: #f8fafc; color: #475569; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; border: 1px solid #e2e8f0;">
+                👤 Tech: <span style="color: #3b82f6;"><?php echo htmlspecialchars($_SESSION['tech_admin']); ?></span>
+            </span>
+        </div>
+        <p class="subtitle" style="text-align: left; margin-top: 5px;">Manage and Resolve Support Tickets</p>
         <form method="GET" class="filter-bar">
             <select name="view" style="font-weight: bold; color: #0f172a;">
                 <option value="active" <?php if ($current_view == 'active') echo 'selected'; ?>>Active Queue</option>
