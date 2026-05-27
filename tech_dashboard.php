@@ -2,20 +2,88 @@
 session_start();
 include 'db.php';
 
+// Import PHPMailer classes into the global namespace
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Require the PHPMailer files you uploaded
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
+
 if (!isset($_SESSION['tech_admin'])) {
     header("Location: tech_login.php");
     exit;
 }
 
-// 1. Handle Ticket Updates
+// 1. Handle Ticket Updates & AUTOMATED EMAIL
 if (isset($_POST['update_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $new_status = $_POST['status'];
     $resolution_notes = trim($_POST['resolution_notes']);
     $resolved_at = ($new_status === 'Resolved') ? date('Y-m-d H:i:s') : null;
 
+    // Update the database first
     $update = $conn->prepare("UPDATE support_tickets SET status = :status, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
     $update->execute([':status' => $new_status, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
+
+    // --- MAGIC EMAIL TRIGGER ---
+    if ($new_status === 'Resolved') {
+        // Fetch the submitter's details
+        $stmt = $conn->prepare("SELECT employee_name, employee_email, issue_title FROM support_tickets WHERE id = :id");
+        $stmt->execute([':id' => $ticket_id]);
+        $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Only send if they actually provided an email
+        if ($ticket && !empty($ticket['employee_email'])) {
+            $mail = new PHPMailer(true);
+            try {
+                // Server settings
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = getenv('MAIL_USERNAME'); // Your Gmail from Render Env
+                $mail->Password   = getenv('MAIL_PASSWORD'); // Your App Password from Render Env
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port       = 587;
+
+                // Recipients
+                $mail->setFrom(getenv('MAIL_USERNAME'), 'TickeTech IT Support');
+                $mail->addAddress($ticket['employee_email'], $ticket['employee_name']);
+
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = 'Resolved: ' . $ticket['issue_title'];
+                
+                // The beautiful HTML email body
+                $mail->Body = "
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;'>
+                        <div style='background: #3b82f6; padding: 20px; color: white; text-align: center;'>
+                            <h2 style='margin: 0;'>Ticket Resolved</h2>
+                        </div>
+                        <div style='padding: 30px; background: #ffffff; color: #334155;'>
+                            <p style='font-size: 16px;'>Hello <strong>{$ticket['employee_name']}</strong>,</p>
+                            <p style='font-size: 16px;'>Good news! Your IT Support ticket regarding <strong>'{$ticket['issue_title']}'</strong> has been successfully resolved by our team.</p>
+                            
+                            <div style='background: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 25px 0;'>
+                                <p style='margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; font-weight: bold;'>Resolution Notes from IT:</p>
+                                <p style='margin: 0; font-size: 15px; color: #0f172a;'>" . nl2br(htmlspecialchars($resolution_notes)) . "</p>
+                            </div>
+                            
+                            <p style='font-size: 15px; color: #64748b;'>Thank you for your patience,<br><strong>The TickeTech IT Team</strong></p>
+                        </div>
+                    </div>
+                ";
+
+                $mail->send();
+            } catch (Exception $e) {
+                // If the email fails (e.g. wrong password), it logs the error but doesn't crash the website
+                error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            }
+        }
+    }
+    // --- END MAGIC EMAIL TRIGGER ---
+
     header("Location: tech_dashboard.php");
     exit;
 }
@@ -91,7 +159,12 @@ $current_priority = $_GET['filter_priority'] ?? '';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>IT Technician Dashboard</title>
+    <title>TickeTech - Dashboard</title>
+    
+    <meta property="og:title" content="TickeTech Admin">
+    <meta property="og:description" content="Secure IT Dashboard.">
+    <meta property="og:image" content="logo.png">
+
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
     <style>
@@ -167,7 +240,8 @@ $current_priority = $_GET['filter_priority'] ?? '';
                             <td>#<?php echo substr($ticket['id'], -7); ?></td>
                             <td>
                                 <strong><?php echo htmlspecialchars($ticket['employee_name']); ?></strong><br>
-                                <span style="font-size: 0.85rem; color: #64748b;"><?php echo htmlspecialchars($ticket['department']); ?></span>
+                                <span style="font-size: 0.85rem; color: #64748b;"><?php echo htmlspecialchars($ticket['department']); ?></span><br>
+                                <span style="font-size: 0.8rem; color: #3b82f6;"><?php echo htmlspecialchars($ticket['employee_email'] ?? 'No email provided'); ?></span>
                             </td>
                             <td>
                                 <strong><?php echo htmlspecialchars($ticket['issue_title']); ?></strong><br>
