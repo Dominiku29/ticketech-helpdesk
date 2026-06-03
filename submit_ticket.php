@@ -6,37 +6,52 @@ $error = null;
 
 if (isset($_POST['submit_ticket'])) {
     $employee_name = trim($_POST['employee_name']);
-    $employee_email = trim($_POST['employee_email']); // Capture the new email field
+    $employee_email = trim($_POST['employee_email']);
     $department = trim($_POST['department']);
     $issue_title = trim($_POST['issue_title']);
     $issue_description = trim($_POST['issue_description']);
-    $priority = $_POST['priority'];
+
+    // 1. Strict Email Validation (Must have an @ and a valid domain ending like .com)
+    $email_pattern = "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/";
 
     if (empty($employee_name) || empty($employee_email) || empty($issue_title) || empty($issue_description)) {
         $error = "Please fill in all required fields.";
     } elseif (!preg_match("/^[a-zA-Z\s]+$/", $employee_name)) {
-        // NEW: Check if the name contains anything other than letters and spaces
         $error = "Your Name can only contain letters and spaces. No numbers or symbols allowed.";
+    } elseif (!filter_var($employee_email, FILTER_VALIDATE_EMAIL) || !preg_match($email_pattern, $employee_email)) {
+        $error = "Please enter a valid email address (e.g., you@company.com).";
     } else {
         try {
-            // Updated SQL statement to include employee_email
+            // 2. Auto-Assignment Logic (Find the tech with the fewest active tickets)
+            $tech_stmt = $conn->query("
+                SELECT a.username, COUNT(t.id) as ticket_count 
+                FROM admin a 
+                LEFT JOIN support_tickets t ON a.username = t.assigned_to AND t.status != 'Resolved'
+                GROUP BY a.username 
+                ORDER BY ticket_count ASC 
+                LIMIT 1
+            ");
+            $assigned_tech_row = $tech_stmt->fetch(PDO::FETCH_ASSOC);
+            $assigned_to = $assigned_tech_row ? $assigned_tech_row['username'] : null;
+
+            // 3. Insert the ticket (Priority defaults to 'Low', Status to 'Open', and auto-assigned)
             $stmt = $conn->prepare("
                 INSERT INTO support_tickets 
-                (employee_name, employee_email, department, issue_title, issue_description, priority, status) 
+                (employee_name, employee_email, department, issue_title, issue_description, priority, status, assigned_to) 
                 VALUES 
-                (:name, :email, :dept, :title, :desc, :priority, 'Open')
+                (:name, :email, :dept, :title, :desc, 'Low', 'Open', :assigned_to)
             ");
             
             $stmt->execute([
                 ':name' => $employee_name,
-                ':email' => $employee_email, // Bind the email variable
+                ':email' => $employee_email,
                 ':dept' => $department,
                 ':title' => $issue_title,
                 ':desc' => $issue_description,
-                ':priority' => $priority
+                ':assigned_to' => $assigned_to
             ]);
             
-            $success = "Ticket submitted successfully! IT has been notified.";
+            $success = "Ticket submitted successfully! It has been automatically assigned to our IT team.";
             
         } catch (PDOException $e) {
             $error = "Database Error: " . $e->getMessage();
@@ -54,7 +69,6 @@ if (isset($_POST['submit_ticket'])) {
     <meta property="og:title" content="TickeTech">
     <meta property="og:description" content="Modern. Sleek. Digital IT Support.">
     <meta property="og:image" content="logo.png">
-    <meta property="og:url" content="https://ticketech.onrender.com">
 
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
@@ -98,7 +112,7 @@ if (isset($_POST['submit_ticket'])) {
                 <input type="text" name="employee_name" pattern="[a-zA-Z\s]+" title="Only letters and spaces are allowed." required>
 
                 <label>Email Address (For Status Updates)</label>
-                <input type="email" name="employee_email" placeholder="you@company.com" required>
+                <input type="email" name="employee_email" placeholder="you@company.com" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address." required>
 
                 <label>Department</label>
                 <select name="department" required>
@@ -115,14 +129,6 @@ if (isset($_POST['submit_ticket'])) {
 
                 <label>Describe the Problem</label>
                 <input type="text" name="issue_description" required>
-
-                <label>Priority Level</label>
-                <select name="priority" required>
-                    <option value="Low">Low</option>
-                    <option value="Medium" selected>Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
 
                 <button type="submit" name="submit_ticket">Submit</button>
             </form>
