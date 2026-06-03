@@ -11,7 +11,6 @@ if (isset($_POST['submit_ticket'])) {
     $issue_title = trim($_POST['issue_title']);
     $issue_description = trim($_POST['issue_description']);
 
-    // 1. Strict Email Validation (Must have an @ and a valid domain ending like .com)
     $email_pattern = "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/";
 
     if (empty($employee_name) || empty($employee_email) || empty($issue_title) || empty($issue_description)) {
@@ -22,11 +21,12 @@ if (isset($_POST['submit_ticket'])) {
         $error = "Please enter a valid email address (e.g., you@company.com).";
     } else {
         try {
-            // 2. Auto-Assignment Logic (Find the tech with the fewest active tickets)
+            // NEW: Auto-Assignment Logic - ONLY assign to techs who are Clocked In (is_online = TRUE)
             $tech_stmt = $conn->query("
                 SELECT a.username, COUNT(t.id) as ticket_count 
                 FROM admin a 
                 LEFT JOIN support_tickets t ON a.username = t.assigned_to AND t.status != 'Resolved'
+                WHERE a.is_online = TRUE
                 GROUP BY a.username 
                 ORDER BY ticket_count ASC 
                 LIMIT 1
@@ -34,7 +34,6 @@ if (isset($_POST['submit_ticket'])) {
             $assigned_tech_row = $tech_stmt->fetch(PDO::FETCH_ASSOC);
             $assigned_to = $assigned_tech_row ? $assigned_tech_row['username'] : null;
 
-            // 3. Insert the ticket (Priority defaults to 'Low', Status to 'Open', and auto-assigned)
             $stmt = $conn->prepare("
                 INSERT INTO support_tickets 
                 (employee_name, employee_email, department, issue_title, issue_description, priority, status, assigned_to) 
@@ -51,7 +50,11 @@ if (isset($_POST['submit_ticket'])) {
                 ':assigned_to' => $assigned_to
             ]);
             
-            $success = "Ticket submitted successfully! It has been automatically assigned to our IT team.";
+            if ($assigned_to) {
+                $success = "Ticket submitted successfully! It has been automatically assigned to our online IT team.";
+            } else {
+                $success = "Ticket submitted successfully! Our IT team is currently offline, but we will review it as soon as we clock in.";
+            }
             
         } catch (PDOException $e) {
             $error = "Database Error: " . $e->getMessage();
