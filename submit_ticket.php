@@ -14,7 +14,8 @@ if (isset($_POST['submit_ticket'])) {
 
     $email_pattern = "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/";
 
-    if (empty($employee_name) || empty($employee_email) || empty($issue_title) || empty($issue_description)) {
+    // Check for empty fields (including our new hidden rich-text field)
+    if (empty($employee_name) || empty($employee_email) || empty($issue_title) || empty(strip_tags($issue_description))) {
         $error = "Please fill in all required fields.";
     } elseif (!preg_match("/^[a-zA-Z\s]+$/", $employee_name)) {
         $error = "Your Name can only contain letters and spaces. No numbers or symbols allowed.";
@@ -49,7 +50,7 @@ if (isset($_POST['submit_ticket'])) {
                 ':email' => $employee_email,
                 ':dept' => $department,
                 ':title' => $issue_title,
-                ':desc' => $issue_description,
+                ':desc' => $issue_description, // This now contains the HTML from the rich text editor
                 ':assigned_to' => $assigned_to
             ]);
             
@@ -126,8 +127,39 @@ if (isset($_POST['submit_ticket'])) {
     <meta property="og:title" content="TickeTech">
     <meta property="og:description" content="Modern. Sleek. Digital IT Support.">
     <meta property="og:image" content="logo.png">
+    
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
+    
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <style>
+        /* Customizing Quill to match your site's aesthetic */
+        .ql-toolbar.ql-snow {
+            border: 2px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            background: #f8fafc;
+            font-family: 'Poppins', sans-serif;
+            margin-top: 5px;
+        }
+        .ql-container.ql-snow {
+            border: 2px solid #e2e8f0;
+            border-radius: 0 0 12px 12px;
+            background: #ffffff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+        }
+        .ql-editor {
+            min-height: 150px;
+        }
+        .ql-editor:focus {
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+            outline: none;
+            border-color: #3b82f6;
+            border-radius: 0 0 12px 12px;
+        }
+    </style>
 </head>
 <body>
 
@@ -174,7 +206,7 @@ if (isset($_POST['submit_ticket'])) {
                 }, 1000);
             </script>
         <?php else: ?>
-            <form method="POST">
+            <form method="POST" id="ticket-form">
                 <label>Your Name</label>
                 <input type="text" name="employee_name" pattern="[a-zA-Z\s]+" title="Only letters and spaces are allowed." required>
 
@@ -195,10 +227,43 @@ if (isset($_POST['submit_ticket'])) {
                 <input type="text" name="issue_title" required>
 
                 <label>Describe the Problem</label>
-                <input type="text" name="issue_description" required>
-
+                
+                <input type="hidden" name="issue_description" id="hidden_description">
+                
+                <div id="editor-container"></div>
                 <button type="submit" name="submit_ticket">Submit</button>
             </form>
+
+            <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+            <script>
+                // Initialize Quill Editor
+                var quill = new Quill('#editor-container', {
+                    theme: 'snow',
+                    placeholder: 'Please provide as much detail as possible (e.g., error codes, steps to reproduce)...',
+                    modules: {
+                        toolbar: [
+                            ['bold', 'italic', 'underline'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            ['code-block']
+                        ]
+                    }
+                });
+
+                // Intercept the form submission to grab the text
+                var form = document.getElementById('ticket-form');
+                form.onsubmit = function() {
+                    // Populate hidden form field with the HTML content from Quill
+                    var description = document.querySelector('input[name=issue_description]');
+                    description.value = quill.root.innerHTML;
+                    
+                    // Basic validation to prevent empty spaces submitting
+                    if (quill.getText().trim().length === 0) {
+                        alert("Please describe the problem.");
+                        return false; 
+                    }
+                    return true;
+                };
+            </script>
         <?php endif; ?>
 
         <div style="text-align: center; margin-top: 25px; opacity: 0.3;">
