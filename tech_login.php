@@ -12,9 +12,21 @@ if (isset($_POST['login'])) {
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Verify credentials
     if ($user && $password === $user['password']) {
         session_regenerate_id(true);
         $_SESSION['tech_admin'] = $user['username'];
+
+        // --- NEW: AUTO-CLOCK IN ---
+        // Instantly set the admin to online/clocked-in so they start receiving tickets
+        try {
+            $clock_in_stmt = $conn->prepare("UPDATE admin SET is_online = TRUE WHERE username = :username");
+            $clock_in_stmt->execute([':username' => $user['username']]);
+        } catch (PDOException $e) {
+            // Silently continue even if the status update fails, so they can still log in
+        }
+        // ---------------------------
+
         header("Location: tech_dashboard.php");
         exit;
     } else {
