@@ -10,14 +10,11 @@
 
 body {
     font-family: 'Poppins', sans-serif;
-    background: 
-        linear-gradient(135deg, rgba(240, 244, 248, 0.92) 0%, rgba(226, 232, 240, 0.92) 100%),
-        url('logo.png') no-repeat center center fixed;
-    background-size: cover; 
+    /* Clean, modern SaaS gradient - no blurry stretched images */
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
     color: #1e293b;
     min-height: 100vh;
 }
-
 a {
     text-decoration: none;
     transition: color 0.2s ease;
