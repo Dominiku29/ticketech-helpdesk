@@ -14,6 +14,9 @@ if (isset($_POST['submit_ticket'])) {
 
     if (empty($employee_name) || empty($employee_email) || empty($issue_title) || empty($issue_description)) {
         $error = "Please fill in all required fields.";
+    } elseif (!preg_match("/^[a-zA-Z\s]+$/", $employee_name)) {
+        // NEW: Check if the name contains anything other than letters and spaces
+        $error = "Your Name can only contain letters and spaces. No numbers or symbols allowed.";
     } else {
         try {
             // Updated SQL statement to include employee_email
@@ -92,7 +95,7 @@ if (isset($_POST['submit_ticket'])) {
         <?php else: ?>
             <form method="POST">
                 <label>Your Name</label>
-                <input type="text" name="employee_name" required>
+                <input type="text" name="employee_name" pattern="[a-zA-Z\s]+" title="Only letters and spaces are allowed." required>
 
                 <label>Email Address (For Status Updates)</label>
                 <input type="email" name="employee_email" placeholder="you@company.com" required>
