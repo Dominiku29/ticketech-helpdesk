@@ -104,7 +104,6 @@ if (isset($_POST['submit_ticket'])) {
                 curl_exec($ch);
                 curl_close($ch);
             }
-            // --- END AUTOMATED EMAIL RECEIPT ---
             
             if ($assigned_to) {
                 $success = "Ticket submitted successfully! It has been automatically assigned to our online IT team.";
@@ -124,11 +123,9 @@ if (isset($_POST['submit_ticket'])) {
 <head>
     <meta charset="UTF-8">
     <title>TickeTech - IT Help Desk</title>
-    
     <meta property="og:title" content="TickeTech">
     <meta property="og:description" content="Modern. Sleek. Digital IT Support.">
     <meta property="og:image" content="logo.png">
-
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="logo.png">
 </head>
@@ -148,7 +145,6 @@ if (isset($_POST['submit_ticket'])) {
                 <div style="background: #10b981; color: white; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 15px auto; font-weight: bold; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">✓</div>
                 <h2 style="color: #0f172a; font-weight: 800; margin-bottom: 10px;">Ticket Submitted!</h2>
                 
-                <!-- NEW: Digital On-Screen Receipt -->
                 <div style="background: white; border: 2px dashed #cbd5e1; padding: 25px; border-radius: 12px; margin: 25px 0; text-align: left; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                     <p style="margin: 0 0 15px 0; color: #64748b; font-size: 0.85rem; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Official Receipt (Please Save)</p>
                     <p style="margin: 8px 0; font-size: 1.05rem; color: #334155;"><strong>Ticket ID:</strong> <span style="color: #3b82f6; font-weight: bold; font-size: 1.2rem;">#<?php echo htmlspecialchars($display_id); ?></span></p>
@@ -166,7 +162,6 @@ if (isset($_POST['submit_ticket'])) {
                 <a href="submit_ticket.php" style="display: block; width: 100%; padding: 14px; background: white; color: #3b82f6; border: 2px solid #3b82f6; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1rem;">Submit Another Issue Now</a>
             </div>
             <script>
-                // Increased timer to 30 seconds so they have time to screenshot the receipt
                 let timeLeft = 30;
                 const countdownElement = document.getElementById('countdown');
                 const timer = setInterval(() => {
@@ -205,10 +200,6 @@ if (isset($_POST['submit_ticket'])) {
                 <button type="submit" name="submit_ticket">Submit</button>
             </form>
         <?php endif; ?>
-        
-        <div class="links">
-            <a href="tech_login.php">Admin Login</a>
-        </div>
     </div>
 </div>
 
