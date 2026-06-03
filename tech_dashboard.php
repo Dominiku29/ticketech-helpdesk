@@ -142,7 +142,7 @@ $current_priority = $_GET['filter_priority'] ?? '';
     <meta property="og:image" content="logo.png">
 
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png?v=2">
     <style>
         table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
         th, td { padding: 15px; border-bottom: 1px solid #e2e8f0; }
