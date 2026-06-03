@@ -200,6 +200,11 @@ if (isset($_POST['submit_ticket'])) {
                 <button type="submit" name="submit_ticket">Submit</button>
             </form>
         <?php endif; ?>
+
+        <div style="text-align: center; margin-top: 25px; opacity: 0.3;">
+            <a href="tech_login.php" style="color: #64748b; font-size: 0.75rem; text-decoration: none; font-weight: 500; cursor: default;">v1.0</a>
+        </div>
+
     </div>
 </div>
 
