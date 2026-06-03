@@ -55,10 +55,6 @@ if (isset($_POST['login'])) {
         <div style="text-align: center; margin-top: 15px;">
             <a href="forgot_password.php" style="color: #3b82f6; font-size: 0.9rem; text-decoration: none; font-weight: 600;">Forgot Password?</a>
         </div>
-        
-        <div class="links">
-            <a href="submit_ticket.php">← Back to Ticket Submission</a>
-        </div>
     </div>
 </div>
 
