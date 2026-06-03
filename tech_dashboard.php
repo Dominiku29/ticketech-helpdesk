@@ -11,12 +11,13 @@ if (!isset($_SESSION['tech_admin'])) {
 if (isset($_POST['update_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $new_status = $_POST['status'];
+    $new_priority = $_POST['priority']; // NEW: Capture priority from IT
     $resolution_notes = trim($_POST['resolution_notes']);
     $resolved_at = ($new_status === 'Resolved') ? date('Y-m-d H:i:s') : null;
 
-    // Update the database first
-    $update = $conn->prepare("UPDATE support_tickets SET status = :status, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
-    $update->execute([':status' => $new_status, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
+    // Update the database first (now includes priority updates)
+    $update = $conn->prepare("UPDATE support_tickets SET status = :status, priority = :priority, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
+    $update->execute([':status' => $new_status, ':priority' => $new_priority, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
 
     // --- MAGIC EMAIL TRIGGER (SENDGRID API) ---
     if ($new_status === 'Resolved') {
@@ -27,24 +28,19 @@ if (isset($_POST['update_ticket'])) {
         if ($ticket && !empty($ticket['employee_email'])) {
             $api_key = getenv('SENDGRID_API_KEY');
             
-            // Auto-capitalize the employee's name for a professional look
             $formatted_name = htmlspecialchars(ucwords(strtolower($ticket['employee_name'])));
             $formatted_issue = htmlspecialchars($ticket['issue_title']);
 
-            // Build the Upgraded HTML email (NO TICKET NUMBER)
             $html_body = "
             <div style='font-family: \"Segoe UI\", Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f1f5f9; padding: 40px 20px;'>
                 <div style='background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'>
-                    
                     <div style='background: #3b82f6; padding: 30px 20px; text-align: center;'>
                         <h2 style='margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;'>Ticket Resolved</h2>
                     </div>
-                    
                     <div style='padding: 35px 30px; color: #334155;'>
                         <p style='font-size: 16px; margin-top: 0;'>Hello <strong>{$formatted_name}</strong>,</p>
                         <p style='font-size: 16px; line-height: 1.6;'>Good news! Your IT Support ticket regarding <strong style='color: #0f172a;'>\"{$formatted_issue}\"</strong> has been successfully resolved by our team.</p>";
 
-            // Conditional Resolution Box
             if (!empty($resolution_notes)) {
                 $html_body .= "
                         <div style='background: #f0fdf4; border-left: 4px solid #10b981; padding: 18px 20px; margin: 30px 0; border-radius: 0 8px 8px 0;'>
@@ -53,32 +49,26 @@ if (isset($_POST['update_ticket'])) {
                         </div>";
             }
 
-            // Sign-off
             $html_body .= "
                         <p style='font-size: 15px; color: #64748b; line-height: 1.6; margin-bottom: 0;'>Thank you for your patience,<br><strong style='color: #0f172a;'>TickeTech IT Team</strong></p>
                     </div>
-                    
                     <div style='background: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e2e8f0;'>
                         <p style='margin: 0; font-size: 12px; color: #64748b;'>This is an automated message from the TickeTech Help Desk system. Please do not reply to this email.</p>
                         <p style='margin: 10px 0 0 0; font-size: 12px; color: #94a3b8;'>&copy; " . date('Y') . " TickeTech. All rights reserved.</p>
                     </div>
-
                 </div>
             </div>
             ";
 
-            // Prepare the JSON payload for SendGrid
             $post_data = json_encode([
                 'personalizations' => [
                     [
-                        'to' => [
-                            ['email' => $ticket['employee_email']] 
-                        ],
+                        'to' => [['email' => $ticket['employee_email']]],
                         'subject' => 'Resolved: ' . $ticket['issue_title']
                     ]
                 ],
                 'from' => [
-                    'email' => 'ticketech.support@gmail.com', // ALREADY SET TO YOUR VERIFIED EMAIL!
+                    'email' => 'ticketech.support@gmail.com',
                     'name' => 'TickeTech IT'
                 ],
                 'content' => [
@@ -89,7 +79,6 @@ if (isset($_POST['update_ticket'])) {
                 ]
             ]);
 
-            // Open a cURL connection to the SendGrid API
             $ch = curl_init('https://api.sendgrid.com/v3/mail/send');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
@@ -99,38 +88,16 @@ if (isset($_POST['update_ticket'])) {
                 'Content-Type: application/json'
             ]);
 
-            // Execute the API call and close connection
             $response = curl_exec($ch);
             curl_close($ch);
         }
     }
-    // --- END MAGIC EMAIL TRIGGER ---
 
     header("Location: tech_dashboard.php");
     exit;
 }
 
-// 2. Handle Claim Ticket
-if (isset($_POST['claim_ticket'])) {
-    $ticket_id = $_POST['ticket_id'];
-    $tech_name = $_SESSION['tech_admin']; 
-
-    $claim = $conn->prepare("UPDATE support_tickets SET assigned_to = :tech, status = 'In Progress' WHERE id = :id");
-    $claim->execute([':tech' => $tech_name, ':id' => $ticket_id]);
-    header("Location: tech_dashboard.php");
-    exit;
-}
-
-// 3. Handle Unclaim Ticket
-if (isset($_POST['unclaim_ticket'])) {
-    $ticket_id = $_POST['ticket_id'];
-    $unclaim = $conn->prepare("UPDATE support_tickets SET assigned_to = NULL, status = 'Open' WHERE id = :id");
-    $unclaim->execute([':id' => $ticket_id]);
-    header("Location: tech_dashboard.php");
-    exit;
-}
-
-// 4. Handle Archive Ticket (Soft Delete)
+// 2. Handle Archive Ticket (Soft Delete)
 if (isset($_POST['archive_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $archive = $conn->prepare("UPDATE support_tickets SET is_archived = TRUE WHERE id = :id");
@@ -139,10 +106,11 @@ if (isset($_POST['archive_ticket'])) {
     exit;
 }
 
-// 5. Build the Dynamic Search & Filter Query
+// 3. Build the Dynamic Search & Filter Query
 $current_view = $_GET['view'] ?? 'active';
 $is_archived_param = ($current_view === 'archived') ? 'TRUE' : 'FALSE';
 
+// Default: Only show tickets assigned to the logged-in tech (unless they want to see all)
 $where_clauses = ["is_archived = " . $is_archived_param]; 
 $params = [];
 
@@ -200,8 +168,6 @@ $current_priority = $_GET['filter_priority'] ?? '';
         .Low { background: #3b82f6; }
         textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px; font-family: inherit; }
         .update-btn { padding: 10px 15px; margin-top: 10px; font-size: 0.9rem; cursor: pointer; }
-        .unclaim-btn { background: white; color: #ef4444; border: 1px solid #ef4444; margin-top: 5px; }
-        .unclaim-btn:hover { background: #fef2f2; }
         .archive-btn { background: #64748b; color: white; border: none; margin-top: 5px; }
         .archive-btn:hover { background: #475569; }
         .filter-bar { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center; border: 1px solid #e2e8f0; }
@@ -223,6 +189,7 @@ $current_priority = $_GET['filter_priority'] ?? '';
             </span>
         </div>
         <p class="subtitle" style="text-align: left; margin-top: 5px;">Manage and Resolve Support Tickets</p>
+        
         <form method="GET" class="filter-bar">
             <select name="view" style="font-weight: bold; color: #0f172a;">
                 <option value="active" <?php if ($current_view == 'active') echo 'selected'; ?>>Active Queue</option>
@@ -277,34 +244,35 @@ $current_priority = $_GET['filter_priority'] ?? '';
                             </td>
                             <td><span class="badge <?php echo $ticket['priority']; ?>"><?php echo $ticket['priority']; ?></span></td>
                             <td style="min-width: 250px;">
-                                <?php if (empty($ticket['assigned_to'])): ?>
-                                    <form method="POST" style="margin: 0;">
-                                        <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                                        <button type="submit" name="claim_ticket" class="update-btn" style="background: #3b82f6; color: white; width: 100%; border: none; border-radius: 8px; font-weight: bold; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);">Claim Ticket</button>
-                                    </form>
-                                <?php else: ?>
-                                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #64748b; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; display: inline-block;">
-                                        👤 Assigned to: <strong><?php echo htmlspecialchars($ticket['assigned_to']); ?></strong>
-                                    </div>
-                                    <form method="POST" style="margin: 0; display: flex; flex-direction: column; gap: 5px;">
-                                        <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                                        <select name="status" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                <div style="margin-bottom: 10px; font-size: 0.85rem; color: #64748b; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; display: inline-block;">
+                                    👤 Auto-Assigned to: <strong style="color: #3b82f6;"><?php echo htmlspecialchars($ticket['assigned_to'] ?? 'Unassigned'); ?></strong>
+                                </div>
+                                
+                                <form method="POST" style="margin: 0; display: flex; flex-direction: column; gap: 5px;">
+                                    <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
+                                    
+                                    <div style="display: flex; gap: 10px;">
+                                        <select name="status" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; flex: 1;">
                                             <option value="Open" <?php if ($ticket['status'] == 'Open') echo 'selected'; ?>>Open</option>
                                             <option value="In Progress" <?php if ($ticket['status'] == 'In Progress') echo 'selected'; ?>>In Progress</option>
                                             <option value="Resolved" <?php if ($ticket['status'] == 'Resolved') echo 'selected'; ?>>Resolved</option>
                                         </select>
-                                        <textarea name="resolution_notes" rows="2" placeholder="Enter resolution notes..."><?php echo htmlspecialchars($ticket['resolution_notes'] ?? ''); ?></textarea>
-                                        <button type="submit" name="update_ticket" class="update-btn" style="background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold;">Save Update</button>
                                         
-                                        <?php if ($ticket['status'] !== 'Resolved'): ?>
-                                            <button type="submit" name="unclaim_ticket" class="update-btn unclaim-btn" style="border-radius: 8px; font-weight: bold;">Unclaim Ticket</button>
-                                        <?php endif; ?>
+                                        <select name="priority" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; flex: 1;">
+                                            <option value="Low" <?php if ($ticket['priority'] == 'Low') echo 'selected'; ?>>Priority: Low</option>
+                                            <option value="Medium" <?php if ($ticket['priority'] == 'Medium') echo 'selected'; ?>>Priority: Medium</option>
+                                            <option value="High" <?php if ($ticket['priority'] == 'High') echo 'selected'; ?>>Priority: High</option>
+                                            <option value="Critical" <?php if ($ticket['priority'] == 'Critical') echo 'selected'; ?>>Priority: Critical</option>
+                                        </select>
+                                    </div>
 
-                                        <?php if ($ticket['status'] === 'Resolved' && $ticket['is_archived'] == false): ?>
-                                            <button type="submit" name="archive_ticket" class="update-btn archive-btn" style="border-radius: 8px; font-weight: bold;">Archive Ticket</button>
-                                        <?php endif; ?>
-                                    </form>
-                                <?php endif; ?>
+                                    <textarea name="resolution_notes" rows="2" placeholder="Enter resolution notes..."><?php echo htmlspecialchars($ticket['resolution_notes'] ?? ''); ?></textarea>
+                                    <button type="submit" name="update_ticket" class="update-btn" style="background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold;">Save Updates</button>
+
+                                    <?php if ($ticket['status'] === 'Resolved' && $ticket['is_archived'] == false): ?>
+                                        <button type="submit" name="archive_ticket" class="update-btn archive-btn" style="border-radius: 8px; font-weight: bold;">Archive Ticket</button>
+                                    <?php endif; ?>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>
