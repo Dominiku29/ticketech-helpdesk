@@ -127,7 +127,7 @@ if (isset($_POST['submit_ticket'])) {
     <meta property="og:description" content="Modern. Sleek. Digital IT Support.">
     <meta property="og:image" content="logo.png">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png?v=2">
     <style>
         /* Styling for the new standard textarea */
         textarea.professional-input {
