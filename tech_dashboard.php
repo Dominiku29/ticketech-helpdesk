@@ -7,19 +7,37 @@ if (!isset($_SESSION['tech_admin'])) {
     exit;
 }
 
-// 1. Handle Ticket Updates & AUTOMATED EMAIL (SENDGRID API)
+$tech_name = $_SESSION['tech_admin'];
+
+// 1. Handle Clock In / Clock Out
+if (isset($_POST['toggle_status'])) {
+    // If they are currently true (1), make it false (0). Vice versa.
+    $new_online_status = ($_POST['current_status'] == 1) ? 'FALSE' : 'TRUE';
+    
+    $update_status = $conn->prepare("UPDATE admin SET is_online = $new_online_status WHERE username = :username");
+    $update_status->execute([':username' => $tech_name]);
+    
+    header("Location: tech_dashboard.php");
+    exit;
+}
+
+// Fetch the technician's current online status
+$status_stmt = $conn->prepare("SELECT is_online FROM admin WHERE username = :username");
+$status_stmt->execute([':username' => $tech_name]);
+$admin_data = $status_stmt->fetch(PDO::FETCH_ASSOC);
+$is_online = $admin_data['is_online'] ?? false;
+
+// 2. Handle Ticket Updates & AUTOMATED EMAIL
 if (isset($_POST['update_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $new_status = $_POST['status'];
-    $new_priority = $_POST['priority']; // NEW: Capture priority from IT
+    $new_priority = $_POST['priority']; 
     $resolution_notes = trim($_POST['resolution_notes']);
     $resolved_at = ($new_status === 'Resolved') ? date('Y-m-d H:i:s') : null;
 
-    // Update the database first (now includes priority updates)
     $update = $conn->prepare("UPDATE support_tickets SET status = :status, priority = :priority, resolution_notes = :notes, resolved_at = :resolved_at WHERE id = :id");
     $update->execute([':status' => $new_status, ':priority' => $new_priority, ':notes' => $resolution_notes, ':resolved_at' => $resolved_at, ':id' => $ticket_id]);
 
-    // --- MAGIC EMAIL TRIGGER (SENDGRID API) ---
     if ($new_status === 'Resolved') {
         $stmt = $conn->prepare("SELECT employee_name, employee_email, issue_title FROM support_tickets WHERE id = :id");
         $stmt->execute([':id' => $ticket_id]);
@@ -61,43 +79,25 @@ if (isset($_POST['update_ticket'])) {
             ";
 
             $post_data = json_encode([
-                'personalizations' => [
-                    [
-                        'to' => [['email' => $ticket['employee_email']]],
-                        'subject' => 'Resolved: ' . $ticket['issue_title']
-                    ]
-                ],
-                'from' => [
-                    'email' => 'ticketech.support@gmail.com',
-                    'name' => 'TickeTech IT'
-                ],
-                'content' => [
-                    [
-                        'type' => 'text/html',
-                        'value' => $html_body
-                    ]
-                ]
+                'personalizations' => [['to' => [['email' => $ticket['employee_email']]], 'subject' => 'Resolved: ' . $ticket['issue_title']]],
+                'from' => ['email' => 'ticketech.support@gmail.com', 'name' => 'TickeTech IT'],
+                'content' => [['type' => 'text/html', 'value' => $html_body]]
             ]);
 
             $ch = curl_init('https://api.sendgrid.com/v3/mail/send');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $api_key,
-                'Content-Type: application/json'
-            ]);
-
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $api_key, 'Content-Type: application/json']);
             $response = curl_exec($ch);
             curl_close($ch);
         }
     }
-
     header("Location: tech_dashboard.php");
     exit;
 }
 
-// 2. Handle Archive Ticket (Soft Delete)
+// 3. Handle Archive Ticket
 if (isset($_POST['archive_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $archive = $conn->prepare("UPDATE support_tickets SET is_archived = TRUE WHERE id = :id");
@@ -106,11 +106,10 @@ if (isset($_POST['archive_ticket'])) {
     exit;
 }
 
-// 3. Build the Dynamic Search & Filter Query
+// 4. Build Filter Query
 $current_view = $_GET['view'] ?? 'active';
 $is_archived_param = ($current_view === 'archived') ? 'TRUE' : 'FALSE';
 
-// Default: Only show tickets assigned to the logged-in tech (unless they want to see all)
 $where_clauses = ["is_archived = " . $is_archived_param]; 
 $params = [];
 
@@ -128,7 +127,6 @@ if (!empty($_GET['filter_priority'])) {
 }
 
 $where_sql = implode(' AND ', $where_clauses);
-
 $stmt = $conn->prepare("
     SELECT * FROM support_tickets
     WHERE $where_sql
@@ -175,6 +173,17 @@ $current_priority = $_GET['filter_priority'] ?? '';
         .filter-bar button { margin: 0; padding: 12px 25px; width: auto; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .clear-btn { background: #cbd5e1; color: #334155; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; text-align: center; }
         .clear-btn:hover { background: #94a3b8; color: white; }
+        
+        /* NEW: Clock In/Out Styles */
+        .status-badge { padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .online-dot { background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+        .offline-dot { background-color: #94a3b8; }
+        .btn-toggle { border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.85rem; margin-top: 0; width: auto; transition: 0.2s; }
+        .btn-clock-in { background: #10b981; color: white; }
+        .btn-clock-in:hover { background: #059669; }
+        .btn-clock-out { background: #ef4444; color: white; }
+        .btn-clock-out:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -184,9 +193,24 @@ $current_priority = $_GET['filter_priority'] ?? '';
         
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h1 style="text-align: left; margin: 0;">IT Technician Portal</h1>
-            <span style="background: #f8fafc; color: #475569; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; border: 1px solid #e2e8f0;">
-                👤 Tech: <span style="color: #3b82f6;"><?php echo htmlspecialchars($_SESSION['tech_admin']); ?></span>
-            </span>
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span class="status-badge" style="background: #f8fafc; color: #475569;">
+                    👤 <span style="color: #3b82f6;"><?php echo htmlspecialchars($tech_name); ?></span>
+                    | 
+                    <span class="status-dot <?php echo $is_online ? 'online-dot' : 'offline-dot'; ?>"></span>
+                    <?php echo $is_online ? 'Receiving Tickets' : 'Offline'; ?>
+                </span>
+                
+                <form method="POST" style="margin: 0;">
+                    <input type="hidden" name="current_status" value="<?php echo $is_online ? 1 : 0; ?>">
+                    <?php if ($is_online): ?>
+                        <button type="submit" name="toggle_status" class="btn-toggle btn-clock-out">Clock Out</button>
+                    <?php else: ?>
+                        <button type="submit" name="toggle_status" class="btn-toggle btn-clock-in">Clock In</button>
+                    <?php endif; ?>
+                </form>
+            </div>
         </div>
         <p class="subtitle" style="text-align: left; margin-top: 5px;">Manage and Resolve Support Tickets</p>
         
