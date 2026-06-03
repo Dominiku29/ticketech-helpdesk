@@ -41,7 +41,7 @@ if (isset($_POST['login'])) {
     <meta charset="UTF-8">
     <title>IT Login - Help Desk</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png?v=2">
 </head>
 <body>
 
