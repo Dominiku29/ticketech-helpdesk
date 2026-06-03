@@ -9,25 +9,13 @@ if (!isset($_SESSION['tech_admin'])) {
 
 $tech_name = $_SESSION['tech_admin'];
 
-// 1. Handle Clock In / Clock Out
-if (isset($_POST['toggle_status'])) {
-    // If they are currently true (1), make it false (0). Vice versa.
-    $new_online_status = ($_POST['current_status'] == 1) ? 'FALSE' : 'TRUE';
-    
-    $update_status = $conn->prepare("UPDATE admin SET is_online = $new_online_status WHERE username = :username");
-    $update_status->execute([':username' => $tech_name]);
-    
-    header("Location: tech_dashboard.php");
-    exit;
-}
-
-// Fetch the technician's current online status
+// Fetch the technician's current online status for the UI display
 $status_stmt = $conn->prepare("SELECT is_online FROM admin WHERE username = :username");
 $status_stmt->execute([':username' => $tech_name]);
 $admin_data = $status_stmt->fetch(PDO::FETCH_ASSOC);
 $is_online = $admin_data['is_online'] ?? false;
 
-// 2. Handle Ticket Updates & AUTOMATED EMAIL
+// 1. Handle Ticket Updates & AUTOMATED EMAIL
 if (isset($_POST['update_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $new_status = $_POST['status'];
@@ -97,7 +85,7 @@ if (isset($_POST['update_ticket'])) {
     exit;
 }
 
-// 3. Handle Archive Ticket
+// 2. Handle Archive Ticket
 if (isset($_POST['archive_ticket'])) {
     $ticket_id = $_POST['ticket_id'];
     $archive = $conn->prepare("UPDATE support_tickets SET is_archived = TRUE WHERE id = :id");
@@ -106,7 +94,7 @@ if (isset($_POST['archive_ticket'])) {
     exit;
 }
 
-// 4. Build Filter Query
+// 3. Build Filter Query
 $current_view = $_GET['view'] ?? 'active';
 $is_archived_param = ($current_view === 'archived') ? 'TRUE' : 'FALSE';
 
@@ -174,16 +162,10 @@ $current_priority = $_GET['filter_priority'] ?? '';
         .clear-btn { background: #cbd5e1; color: #334155; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; text-align: center; }
         .clear-btn:hover { background: #94a3b8; color: white; }
         
-        /* NEW: Clock In/Out Styles */
         .status-badge { padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 8px; }
         .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .online-dot { background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
         .offline-dot { background-color: #94a3b8; }
-        .btn-toggle { border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.85rem; margin-top: 0; width: auto; transition: 0.2s; }
-        .btn-clock-in { background: #10b981; color: white; }
-        .btn-clock-in:hover { background: #059669; }
-        .btn-clock-out { background: #ef4444; color: white; }
-        .btn-clock-out:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -199,17 +181,8 @@ $current_priority = $_GET['filter_priority'] ?? '';
                     👤 <span style="color: #3b82f6;"><?php echo htmlspecialchars($tech_name); ?></span>
                     | 
                     <span class="status-dot <?php echo $is_online ? 'online-dot' : 'offline-dot'; ?>"></span>
-                    <?php echo $is_online ? 'Receiving Tickets' : 'Offline'; ?>
+                    <?php echo $is_online ? 'Online & Receiving Tickets' : 'Offline'; ?>
                 </span>
-                
-                <form method="POST" style="margin: 0;">
-                    <input type="hidden" name="current_status" value="<?php echo $is_online ? 1 : 0; ?>">
-                    <?php if ($is_online): ?>
-                        <button type="submit" name="toggle_status" class="btn-toggle btn-clock-out">Clock Out</button>
-                    <?php else: ?>
-                        <button type="submit" name="toggle_status" class="btn-toggle btn-clock-in">Clock In</button>
-                    <?php endif; ?>
-                </form>
             </div>
         </div>
         <p class="subtitle" style="text-align: left; margin-top: 5px;">Manage and Resolve Support Tickets</p>
